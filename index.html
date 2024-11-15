@@ -9,20 +9,29 @@
 <body>
     <h2>Atualizar Limite de Clientes</h2>
 
-    <!-- Lista de clientes -->
     <div id="clientes"></div>
 
-    <!-- Detalhes do cliente selecionado -->
     <div id="detalhesCliente" style="display:none;">
         <h3>Detalhes do Cliente</h3>
         <p id="clienteInfo"></p>
         <label for="novoLimite">Adicionar ao Limite Atual:</label>
         <input type="number" id="novoLimite" step="0.01" required>
-        <button id="confirmarAtualizacao">Confirmar Atualização</button>
+        <button id="abrirModalConfirmacao">Confirmar Atualização</button>
         <button id="cancelarAtualizacao">Cancelar</button>
     </div>
 
     <p id="mensagem"></p>
+
+    <!-- Modal de Confirmação -->
+    <div id="modalConfirmacao" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Confirmação de Atualização de Limite</h3>
+            <p id="textoConfirmacao"></p>
+            <button id="btnConfirmarTransacao" class="confirmar">Confirmar</button>
+            <button id="btnCancelarTransacao" class="cancelar">Cancelar</button>
+        </div>
+    </div>
 
     <script>
         async function carregarClientes() {
@@ -36,7 +45,7 @@
                 clientes.forEach(cliente => {
                     const clienteItem = document.createElement('div');
                     clienteItem.classList.add('cliente-item');
-                    clienteItem.textContent = `${cliente.nome} - Limite: R$ ${cliente.limite}`;
+                    clienteItem.textContent = `${cliente.nome} - Limite: R$ ${parseFloat(cliente.limite).toFixed(2)}`;
                     clienteItem.onclick = () => selecionarCliente(cliente.id_cliente);
                     clientesDiv.appendChild(clienteItem);
                 });
@@ -50,45 +59,70 @@
                 const response = await fetch(`/cliente/${idcliente}`);
                 const cliente = await response.json();
 
-                document.getElementById('clienteInfo').innerText = `Nome: ${cliente.nome}\nLimite Atual: R$ ${cliente.limite}`;
+                document.getElementById('clienteInfo').innerText = `Nome: ${cliente.nome}\nLimite Atual: R$ ${parseFloat(cliente.limite).toFixed(2)}`;
                 document.getElementById('detalhesCliente').style.display = 'block';
 
-                document.getElementById('confirmarAtualizacao').onclick = () => confirmarAtualizacao(idcliente, cliente.limite);
-                document.getElementById('cancelarAtualizacao').onclick = cancelarAtualizacao;
+                document.getElementById('abrirModalConfirmacao').onclick = () => confirmarAtualizacao(idcliente, cliente.limite);
+                document.getElementById('cancelarAtualizacao').onclick = cancelarTransacao;
             } catch (error) {
                 document.getElementById('mensagem').innerText = 'Erro ao carregar detalhes do cliente: ' + error.message;
             }
         }
 
-        function cancelarAtualizacao() {
-            document.getElementById('detalhesCliente').style.display = 'none';
-            document.getElementById('mensagem').innerText = 'Atualização cancelada.';
-        }
-
         async function confirmarAtualizacao(idcliente, limiteAtual) {
             const valorAdicionado = parseFloat(document.getElementById('novoLimite').value);
-
             if (isNaN(valorAdicionado)) {
                 alert('Por favor, insira um valor válido.');
                 return;
             }
 
-            const novoLimite = limiteAtual + valorAdicionado;
+            try {
+                const response = await fetch('/iniciar_transacao', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idcliente, valorAdicionado })
+                });
 
-            // Exibe o pop-up de confirmação
-            const confirmacao = confirm(
-                `Você está prestes a alterar o limite do cliente.\n\n` +
-                `Limite Atual: R$ ${limiteAtual}\n` +
-                `Novo Limite: R$ ${novoLimite}\n\n` +
-                `Deseja confirmar essa alteração?`
-            );
+                if (response.ok) {
+                    const resultado = await response.json();
 
-            if (!confirmacao) {
-                document.getElementById('mensagem').innerText = 'Atualização cancelada pelo usuário.';
-                return;
+                    document.getElementById('textoConfirmacao').innerText = `Limite Atual: R$ ${resultado.limiteAtual.toFixed(2)}\nNovo Limite: R$ ${resultado.novoLimite.toFixed(2)}`;
+                    document.getElementById('modalConfirmacao').style.display = 'block';
+
+                    document.getElementById('btnConfirmarTransacao').onclick = () => finalizarTransacao(idcliente, resultado.novoLimite);
+                    document.getElementById('btnCancelarTransacao').onclick = cancelarTransacao;
+                } else {
+                    const errorMessage = await response.text();
+                    document.getElementById('mensagem').innerText = errorMessage;
+                    carregarClientes();
+                }
+            } catch (error) {
+                document.getElementById('mensagem').innerText = 'Erro ao iniciar transação: ' + error.message;
             }
+        }
 
-            // Prossegue com a requisição ao backend se o usuário confirmar
+        function cancelarTransacao() {
+            document.getElementById('modalConfirmacao').style.display = 'none';
+
+            fetch('/rollback_transacao', { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById('mensagem').innerText = 'Transação cancelada.';
+                        carregarClientes();
+                    } else {
+                        return response.text().then(errorMessage => {
+                            document.getElementById('mensagem').innerText = errorMessage;
+                        });
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('mensagem').innerText = 'Erro ao cancelar transação: ' + error.message;
+                });
+        }
+
+        async function finalizarTransacao(idcliente, novoLimite) {
+            document.getElementById('modalConfirmacao').style.display = 'none';
+
             try {
                 const response = await fetch('/confirmar_atualizacao', {
                     method: 'POST',
@@ -97,19 +131,19 @@
                 });
 
                 if (response.ok) {
-                    const resultado = await response.text();
-                    document.getElementById('mensagem').innerText = resultado;
-                    carregarClientes();
+                    document.getElementById('mensagem').innerText = 'Limite atualizado com sucesso!';
                 } else {
                     const errorMessage = await response.text();
                     document.getElementById('mensagem').innerText = errorMessage;
                 }
+
+                carregarClientes();
             } catch (error) {
-                document.getElementById('mensagem').innerText = 'Erro ao conectar-se ao servidor: ' + error.message;
+                document.getElementById('mensagem').innerText = 'Erro ao confirmar atualização: ' + error.message;
             }
         }
 
-        carregarClientes();
+        window.onload = carregarClientes;
     </script>
 </body>
 </html>
