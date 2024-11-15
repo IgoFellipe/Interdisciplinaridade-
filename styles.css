@@ -1,0 +1,139 @@
+/* Reset de estilo para remover margens e paddings padrão */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #f4f4f9;
+    color: #333;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* Estilo para a lista de clientes com rolagem fixa */
+#clientes {
+    width: 100%;
+    max-width: 400px;
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-height: 400px; /* Limita a altura máxima para 400px */
+    overflow-y: auto; /* Adiciona rolagem vertical */
+}
+
+/* Estilo para o container de detalhes do cliente */
+#detalhesCliente {
+    width: 100%;
+    max-width: 400px;
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#clientes h3, #detalhesCliente h3 {
+    color: #007BFF;
+    margin-bottom: 10px;
+}
+
+/* Estilo para cada item de cliente na lista */
+.cliente-item {
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    transition: background-color 0.3s ease;
+    color: #007BFF;
+}
+
+.cliente-item:hover {
+    background-color: #e2e6ea;
+}
+
+label {
+    font-weight: bold;
+    margin-top: 10px;
+    display: block;
+}
+
+input[type="number"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    font-size: 1rem;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #fff;
+}
+
+#confirmarAtualizacao {
+    background-color: #28a745;
+}
+
+#confirmarAtualizacao:hover {
+    background-color: #218838;
+}
+
+#cancelarAtualizacao {
+    background-color: #dc3545;
+}
+
+#cancelarAtualizacao:hover {
+    background-color: #c82333;
+}
+
+#mensagem {
+    margin-top: 20px;
+    font-size: 1rem;
+    color: #333;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Estilo para a área de paginação (se houver) */
+.paginacao {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.paginacao button {
+    padding: 8px 12px;
+    margin: 0 5px;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.paginacao button:hover {
+    background-color: #0056b3;
+}

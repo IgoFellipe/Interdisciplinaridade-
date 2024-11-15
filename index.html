@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atualizar Limite de Clientes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h2>Atualizar Limite de Clientes</h2>
+
+    <!-- Lista de clientes -->
+    <div id="clientes"></div>
+
+    <!-- Detalhes do cliente selecionado -->
+    <div id="detalhesCliente" style="display:none;">
+        <h3>Detalhes do Cliente</h3>
+        <p id="clienteInfo"></p>
+        <label for="novoLimite">Novo Limite:</label>
+        <input type="number" id="novoLimite" step="0.01" required>
+        <button id="confirmarAtualizacao">Confirmar Atualização</button>
+        <button id="cancelarAtualizacao">Cancelar</button>
+    </div>
+
+    <p id="mensagem"></p>
+
+    <script>
+        async function carregarClientes() {
+            try {
+                const response = await fetch('/clientes');
+                const clientes = await response.json();
+
+                const clientesDiv = document.getElementById('clientes');
+                clientesDiv.innerHTML = '<h3>Clientes</h3>';
+
+                clientes.forEach(cliente => {
+                    const clienteItem = document.createElement('div');
+                    clienteItem.classList.add('cliente-item');
+                    clienteItem.textContent = `${cliente.nome} - Limite: R$ ${cliente.limite}`;
+                    clienteItem.onclick = () => selecionarCliente(cliente.idcliente);
+                    clientesDiv.appendChild(clienteItem);
+                });
+            } catch (error) {
+                document.getElementById('mensagem').innerText = 'Erro ao carregar clientes: ' + error.message;
+            }
+        }
+
+        async function selecionarCliente(idcliente) {
+            try {
+                const response = await fetch(`/cliente/${idcliente}`);
+                const cliente = await response.json();
+
+                document.getElementById('clienteInfo').innerText = `Nome: ${cliente.nome}\nLimite Atual: R$ ${cliente.limite}`;
+                document.getElementById('detalhesCliente').style.display = 'block';
+
+                document.getElementById('confirmarAtualizacao').onclick = () => confirmarAtualizacao(idcliente, cliente.limite);
+                document.getElementById('cancelarAtualizacao').onclick = cancelarAtualizacao;
+            } catch (error) {
+                document.getElementById('mensagem').innerText = 'Erro ao carregar detalhes do cliente: ' + error.message;
+            }
+        }
+
+        function cancelarAtualizacao() {
+            document.getElementById('detalhesCliente').style.display = 'none';
+            document.getElementById('mensagem').innerText = 'Atualização cancelada.';
+        }
+
+        async function confirmarAtualizacao(idcliente, limiteAtual) {
+            const novoLimite = parseFloat(document.getElementById('novoLimite').value);
+
+            if (isNaN(novoLimite)) {
+                alert('Por favor, insira um limite válido.');
+                return;
+            }
+
+            // Exibe uma mensagem de confirmação para o usuário
+            const confirmacao = confirm(
+                `Você está prestes a alterar o limite do cliente.\n\n` +
+                `Limite Atual: R$ ${limiteAtual}\n` +
+                `Novo Limite: R$ ${novoLimite}\n\n` +
+                `Deseja confirmar essa alteração?`
+            );
+
+            if (!confirmacao) {
+                document.getElementById('mensagem').innerText = 'Atualização cancelada pelo usuário.';
+                return;
+            }
+
+            // Envia a atualização para o backend após a confirmação do usuário
+            try {
+                const response = await fetch(`/atualizar_limite`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idcliente, novoLimite })
+                });
+
+                const resultado = await response.text();
+                document.getElementById('mensagem').innerText = resultado;
+                document.getElementById('detalhesCliente').style.display = 'none';
+                carregarClientes();
+            } catch (error) {
+                document.getElementById('mensagem').innerText = 'Erro ao atualizar limite: ' + error.message;
+            }
+        }
+
+        carregarClientes();
+    </script>
+</body>
+</html>
