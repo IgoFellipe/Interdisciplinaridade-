@@ -1,0 +1,16 @@
+{
+  "name": "trabalho_robson",
+  "version": "1.0.0",
+  "main": "atualizar_limite.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.1",
+    "pg": "^8.13.1"
+  }
+}

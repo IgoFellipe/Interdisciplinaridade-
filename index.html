@@ -16,7 +16,7 @@
     <div id="detalhesCliente" style="display:none;">
         <h3>Detalhes do Cliente</h3>
         <p id="clienteInfo"></p>
-        <label for="novoLimite">Novo Limite:</label>
+        <label for="novoLimite">Adicionar ao Limite Atual:</label>
         <input type="number" id="novoLimite" step="0.01" required>
         <button id="confirmarAtualizacao">Confirmar Atualização</button>
         <button id="cancelarAtualizacao">Cancelar</button>
@@ -37,7 +37,7 @@
                     const clienteItem = document.createElement('div');
                     clienteItem.classList.add('cliente-item');
                     clienteItem.textContent = `${cliente.nome} - Limite: R$ ${cliente.limite}`;
-                    clienteItem.onclick = () => selecionarCliente(cliente.idcliente);
+                    clienteItem.onclick = () => selecionarCliente(cliente.id_cliente);
                     clientesDiv.appendChild(clienteItem);
                 });
             } catch (error) {
@@ -66,14 +66,16 @@
         }
 
         async function confirmarAtualizacao(idcliente, limiteAtual) {
-            const novoLimite = parseFloat(document.getElementById('novoLimite').value);
+            const valorAdicionado = parseFloat(document.getElementById('novoLimite').value);
 
-            if (isNaN(novoLimite)) {
-                alert('Por favor, insira um limite válido.');
+            if (isNaN(valorAdicionado)) {
+                alert('Por favor, insira um valor válido.');
                 return;
             }
 
-            // Exibe uma mensagem de confirmação para o usuário
+            const novoLimite = limiteAtual + valorAdicionado;
+
+            // Exibe o pop-up de confirmação
             const confirmacao = confirm(
                 `Você está prestes a alterar o limite do cliente.\n\n` +
                 `Limite Atual: R$ ${limiteAtual}\n` +
@@ -86,20 +88,24 @@
                 return;
             }
 
-            // Envia a atualização para o backend após a confirmação do usuário
+            // Prossegue com a requisição ao backend se o usuário confirmar
             try {
-                const response = await fetch(`/atualizar_limite`, {
+                const response = await fetch('/confirmar_atualizacao', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ idcliente, novoLimite })
+                    body: JSON.stringify({ idcliente, novoLimite, confirmar: true })
                 });
 
-                const resultado = await response.text();
-                document.getElementById('mensagem').innerText = resultado;
-                document.getElementById('detalhesCliente').style.display = 'none';
-                carregarClientes();
+                if (response.ok) {
+                    const resultado = await response.text();
+                    document.getElementById('mensagem').innerText = resultado;
+                    carregarClientes();
+                } else {
+                    const errorMessage = await response.text();
+                    document.getElementById('mensagem').innerText = errorMessage;
+                }
             } catch (error) {
-                document.getElementById('mensagem').innerText = 'Erro ao atualizar limite: ' + error.message;
+                document.getElementById('mensagem').innerText = 'Erro ao conectar-se ao servidor: ' + error.message;
             }
         }
 

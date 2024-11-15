@@ -9,10 +9,10 @@ app.use(bodyParser.json());
 
 // Configurações de conexão com o banco de dados
 const dbConfig = {
-    host: '192.168.31.39',
-    database: 'db231072110',
-    user: 'usuario',
-    password: 'usuario',
+    host: '127.0.0.1',
+    database: 'clientes',
+    user: 'postgres',
+    password: '84568581',
     port: 5432,
 };
 
@@ -22,6 +22,38 @@ app.use(express.static(path.join(__dirname)));
 // Rota para servir o arquivo HTML na rota principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Rota para buscar todos os clientes
+app.get('/clientes', async (req, res) => {
+    const client = new Client(dbConfig);
+    await client.connect();
+    try {
+        const result = await client.query('SELECT * FROM cliente');
+        res.json(result.rows); // Retorna os dados dos clientes em JSON
+    } catch (error) {
+        res.status(500).send("Erro ao buscar clientes: " + error.message);
+    } finally {
+        client.end();
+    }
+});
+
+// Rota para buscar um cliente específico
+app.get('/cliente/:id', async (req, res) => {
+    const { id } = req.params;
+    const client = new Client(dbConfig);
+    await client.connect();
+    try {
+        const result = await client.query('SELECT * FROM cliente WHERE id_cliente = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).send("Cliente não encontrado.");
+        }
+        res.json(result.rows[0]); // Retorna o cliente específico em JSON
+    } catch (error) {
+        res.status(500).send("Erro ao buscar cliente: " + error.message);
+    } finally {
+        client.end();
+    }
 });
 
 // Rota para iniciar transação e obter limite atual do cliente
@@ -36,24 +68,33 @@ app.post('/iniciar_transacao', async (req, res) => {
     await client.connect();
 
     try {
-        // Inicia uma transação e bloqueia a linha do cliente
+        console.log('Tentando iniciar transação para o cliente:', idcliente);
+        
+        // Inicia uma transação e tenta bloquear a linha do cliente
         await client.query('BEGIN');
-        const result = await client.query('SELECT limite FROM cliente WHERE id_cliente = $1 FOR UPDATE', [idcliente]);
+        const result = await client.query('SELECT limite FROM cliente WHERE id_cliente = $1 FOR UPDATE NOWAIT', [idcliente]);
         const clienteAtual = result.rows[0];
 
         if (!clienteAtual) {
             await client.query('ROLLBACK');
+            console.log('Cliente não encontrado, realizando rollback');
             return res.status(404).send("Cliente não encontrado.");
         }
 
-        // Calcula o novo limite
+        // Calcula o novo limite com base no limite atual e no valor adicionado
         const novoLimite = parseFloat(clienteAtual.limite) + parseFloat(valorAdicionado);
 
-        // Envia o limite atual e o novo limite para o frontend, mantendo a transação aberta
+        // Envia o limite atual e o novo limite para o frontend
         res.json({ limiteAtual: clienteAtual.limite, novoLimite });
     } catch (error) {
-        await client.query('ROLLBACK');
-        res.status(500).send("Erro ao iniciar transação: " + error.message);
+        if (error.code === '55P03') { // Código de erro para lock (bloqueio de linha)
+            console.log('Transação já ativa para este cliente.');
+            return res.status(409).send("Já existe uma transação ativa para este cliente. Tente novamente mais tarde.");
+        } else {
+            console.log('Erro ao iniciar transação, realizando rollback:', error.message);
+            await client.query('ROLLBACK');
+            return res.status(500).send("Erro ao iniciar transação: " + error.message);
+        }
     } finally {
         client.end();
     }
@@ -75,14 +116,17 @@ app.post('/confirmar_atualizacao', async (req, res) => {
             // Realiza o UPDATE e confirma a transação
             await client.query('UPDATE cliente SET limite = $1 WHERE id_cliente = $2', [novoLimite, idcliente]);
             await client.query('COMMIT');
+            console.log('Transação confirmada e limite atualizado');
             res.send("Limite atualizado com sucesso!");
         } else {
             // Caso o usuário cancele, faz o ROLLBACK
             await client.query('ROLLBACK');
+            console.log('Transação cancelada e rollback executado');
             res.send("Atualização cancelada.");
         }
     } catch (error) {
         await client.query('ROLLBACK');
+        console.log('Erro ao atualizar limite, rollback executado');
         res.status(500).send("Erro ao atualizar limite: " + error.message);
     } finally {
         client.end();
